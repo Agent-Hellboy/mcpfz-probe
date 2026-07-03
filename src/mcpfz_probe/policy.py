@@ -75,6 +75,42 @@ def evaluate_events(events: Iterable[RuntimeEvent], policy: RuntimePolicy) -> li
                 )
         elif event.type == "file_open":
             findings.extend(_evaluate_file_event(event, policy))
+        elif event.type == "file_delete":
+            path = str(event.data.get("path", ""))
+            if path and not _is_allowed_write(path, policy.fs_write_allow):
+                findings.append(
+                    FindingDraft(
+                        category="runtime.fs_delete",
+                        severity="high",
+                        detail=f"file deleted outside allowed paths: {path}",
+                        evidence={"event": event.data, "call_id": event.call_id},
+                    )
+                )
+        elif event.type == "chmod":
+            path = str(event.data.get("path", ""))
+            mode = str(event.data.get("mode", ""))
+            if path and not _is_allowed_write(path, policy.fs_write_allow):
+                findings.append(
+                    FindingDraft(
+                        category="runtime.fs_chmod",
+                        severity="medium",
+                        detail=f"permissions changed outside allowed paths: {path} (mode {mode})",
+                        evidence={"event": event.data, "call_id": event.call_id},
+                    )
+                )
+        elif event.type == "ptrace":
+            findings.append(
+                FindingDraft(
+                    category="runtime.ptrace",
+                    severity="critical",
+                    detail=(
+                        "ptrace syscall "
+                        f"(request {event.data.get('request')}) "
+                        f"targeting pid {event.data.get('target_pid')}"
+                    ),
+                    evidence={"event": event.data, "call_id": event.call_id},
+                )
+            )
     return findings
 
 
