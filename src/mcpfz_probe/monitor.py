@@ -79,6 +79,8 @@ class SidecarRuntimeMonitor:
         self._events_by_call: dict[str, list[RuntimeEvent]] = defaultdict(list)
         self._ambient_events: list[RuntimeEvent] = []
         self._dropped = 0
+        self._begin_signals: dict[str, threading.Event] = {}
+        self._end_signals: dict[str, threading.Event] = {}
 
     def start(self) -> None:
         if self._process is not None:
@@ -103,24 +105,53 @@ class SidecarRuntimeMonitor:
     def stop(self) -> None:
         if self._process is None:
             return
-        self._send({"op": "shutdown"})
+        try:
+            self._send({"op": "shutdown"})
+        except (BrokenPipeError, RuntimeError, ValueError):
+            pass
         self._process.terminate()
         try:
             self._process.wait(timeout=2)
         except subprocess.TimeoutExpired:
             self._process.kill()
             self._process.wait(timeout=2)
+        if self._reader is not None:
+            self._reader.join(timeout=2)
+            self._reader = None
+        for stream in (self._process.stdin, self._process.stdout, self._process.stderr):
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
         self._process = None
 
     def set_scope_pgid(self, pgid: int, generation: int) -> None:
         self._send({"op": "scope", "pgid": pgid, "generation": generation})
 
-    def begin_call(self, call_id: str, tool: str) -> None:
-        self._send({"op": "mark", "phase": "begin", "call_id": call_id, "tool": tool})
-
-    def end_call(self, call_id: str) -> RuntimeSummary:
-        self._send({"op": "mark", "phase": "end", "call_id": call_id})
+    def begin_call(self, call_id: str, tool: str, timeout: float = 2.0) -> None:
+        begin_signal = threading.Event()
         with self._lock:
+            self._end_signals[call_id] = threading.Event()
+            self._begin_signals[call_id] = begin_signal
+        self._send({"op": "mark", "phase": "begin", "call_id": call_id, "tool": tool})
+        # Block until the sidecar confirms the call window is open, so a runtime
+        # event triggered right after this returns can't race an un-applied mark
+        # and get mis-bucketed as ambient.
+        begin_signal.wait(timeout)
+
+    def end_call(self, call_id: str, timeout: float = 2.0) -> RuntimeSummary:
+        with self._lock:
+            signal = self._end_signals.get(call_id)
+        self._send({"op": "mark", "phase": "end", "call_id": call_id})
+        # stdout is ordered, so once the sidecar's `end` status for this call
+        # has been read, every event it attributed to the call has been read
+        # too. Block on that marker instead of racing the reader thread.
+        if signal is not None:
+            signal.wait(timeout)
+        with self._lock:
+            self._end_signals.pop(call_id, None)
+            self._begin_signals.pop(call_id, None)
             events = tuple(self._events_by_call.pop(call_id, []))
             truncated = any(event.type == "drop" for event in events) or self._dropped > 0
         return RuntimeSummary(call_id=call_id, events=events, truncated=truncated)
@@ -145,10 +176,22 @@ class SidecarRuntimeMonitor:
                 if raw_file is not None:
                     raw_file.write(line)
                     raw_file.flush()
-                event = RuntimeEvent.from_json(line)
+                try:
+                    event = RuntimeEvent.from_json(line)
+                except (json.JSONDecodeError, KeyError):
+                    continue
+                message = event.data.get("message") if event.type == "status" else None
                 with self._lock:
                     if event.type == "drop":
                         self._dropped += int(event.data.get("count", 1))
+                    if message == "begin" and event.call_id:
+                        signal = self._begin_signals.get(event.call_id)
+                        if signal is not None:
+                            signal.set()
+                    if message == "end" and event.call_id:
+                        signal = self._end_signals.get(event.call_id)
+                        if signal is not None:
+                            signal.set()
                     if event.call_id:
                         self._events_by_call[event.call_id].append(event)
                     else:

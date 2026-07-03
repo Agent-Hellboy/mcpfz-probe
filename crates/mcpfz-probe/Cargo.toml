@@ -4,5 +4,15 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
+[features]
+# Off by default so the portable build (macOS/CI, fake backend) needs no
+# nightly, bpf-linker, or LLVM. Enable on Linux: `cargo build --features ebpf`.
+ebpf = ["dep:aya", "dep:libc", "dep:mcpfz-probe-ebpf-common"]
+
 [dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+aya = { version = "0.13", optional = true }
+libc = { version = "0.2", optional = true }
+mcpfz-probe-ebpf-common = { path = "../mcpfz-probe-ebpf-common", optional = true }
 
