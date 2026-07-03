@@ -1,5 +1,7 @@
 # mcpfz-probe
 
+[![CI](https://github.com/Agent-Hellboy/mcpfz-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/Agent-Hellboy/mcpfz-probe/actions/workflows/ci.yml)
+
 Standalone runtime probe for MCP server fuzzing. It runs beside
 `mcp-server-fuzzer`: the fuzzer owns process launch and per-call timing; this
 repo owns runtime event collection, per-call attribution, and the sidecar

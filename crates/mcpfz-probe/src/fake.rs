@@ -36,10 +36,10 @@ pub enum Control {
 ///
 /// `trigger` is one of:
 /// - `startup`: emitted once when the sidecar starts, bucket `startup`.
-/// - `scope`:   emitted when a `scope` message is received, bucket `ambient`.
-/// - `begin`:   emitted when a `begin` mark is received, bucket `call`.
-/// - `end`:     emitted when an `end` mark is received, bucket `call`
-///              (the trailing grace window of the just-ended call).
+/// - `scope`: emitted when a `scope` message is received, bucket `ambient`.
+/// - `begin`: emitted when a `begin` mark is received, bucket `call`.
+/// - `end`: emitted when an `end` mark is received, bucket `call` (the trailing
+///   grace window of the just-ended call).
 ///
 /// For `begin`/`end` triggers an optional `tool` filter restricts the event to
 /// marks carrying that tool name. The `event` object is passed through verbatim

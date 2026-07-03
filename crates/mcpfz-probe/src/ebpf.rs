@@ -118,10 +118,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             })?
     };
 
-    write_line(&out, serde_json::json!({
-        "type": "status", "bucket": "startup", "message": "ready",
-        "backend": "ebpf", "ts_ns": crate::now_ns() as u64,
-    }));
+    write_line(
+        &out,
+        serde_json::json!({
+            "type": "status", "bucket": "startup", "message": "ready",
+            "backend": "ebpf", "ts_ns": crate::now_ns() as u64,
+        }),
+    );
 
     let ring_fd = ring.as_raw_fd();
     while !shutdown.load(Ordering::SeqCst) {
@@ -168,7 +171,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 "argv".into(),
                 serde_json::Value::from(vec![filename.to_string()]),
             );
-            obj.insert("ts_ns".into(), serde_json::Value::from(crate::now_ns() as u64));
+            obj.insert(
+                "ts_ns".into(),
+                serde_json::Value::from(crate::now_ns() as u64),
+            );
             write_line(&out, serde_json::Value::Object(obj));
         }
 
@@ -182,10 +188,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let mut s = state.lock().unwrap();
                 s.active_call.take().or(end_call_id)
             };
-            write_line(&out, serde_json::json!({
-                "type": "status", "bucket": "call", "message": "end",
-                "call_id": ended, "ts_ns": crate::now_ns() as u64,
-            }));
+            write_line(
+                &out,
+                serde_json::json!({
+                    "type": "status", "bucket": "call", "message": "end",
+                    "call_id": ended, "ts_ns": crate::now_ns() as u64,
+                }),
+            );
         }
 
         poll_readable(ring_fd, 200);

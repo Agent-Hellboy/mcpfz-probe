@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Run Python tests
+        run: PYTHONPATH=src python -m unittest discover -s tests -v
+
+  rust:
+    name: rust ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Build
+        run: cargo build --verbose
+      - name: Test
+        run: cargo test --verbose
+
+  integration:
+    name: integration (real sidecar + monitor + policy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sidecar
+        run: cargo build
+      - name: End-to-end tests
+        run: PYTHONPATH=src python -m unittest discover -s tests -v
+
+  ebpf-build:
+    name: ebpf backend build (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rust-src
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install LLVM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-18-dev libpolly-18-dev
+      - name: Cache bpf-linker
+        id: bpf-linker-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/bpf-linker
+          key: bpf-linker-${{ runner.os }}-llvm18
+      - name: Install bpf-linker
+        if: steps.bpf-linker-cache.outputs.cache-hit != 'true'
+        env:
+          LLVM_SYS_181_PREFIX: /usr/lib/llvm-18
+        run: cargo install bpf-linker
+      - name: Build eBPF backend
+        env:
+          LLVM_SYS_181_PREFIX: /usr/lib/llvm-18
+        run: cargo build --features ebpf --verbose
