@@ -1,0 +1,25 @@
+# This crate is compiled to BPF bytecode (target bpfel-unknown-none), not for
+# the host, so it is intentionally detached from the root workspace below.
+[package]
+name = "mcpfz-probe-ebpf"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[workspace]
+
+[dependencies]
+aya-ebpf = "0.1"
+mcpfz-probe-ebpf-common = { path = "../mcpfz-probe-ebpf-common" }
+
+[[bin]]
+name = "mcpfz-probe-ebpf"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 2
+debug = false
+lto = true
+panic = "abort"
+codegen-units = 1
