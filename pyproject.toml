@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcpfz-probe"
+version = "0.1.0"
+description = "Runtime sidecar protocol and Python monitor for MCP server fuzzing"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Prince Roshan"}]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
