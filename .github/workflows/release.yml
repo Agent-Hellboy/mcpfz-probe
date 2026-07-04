@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  linux-ebpf:
+    name: build + publish Linux eBPF binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rust-src
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install LLVM + bpf-linker
+        env:
+          LLVM_SYS_181_PREFIX: /usr/lib/llvm-18
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-18-dev libpolly-18-dev
+          cargo install bpf-linker
+      - name: Build release (eBPF)
+        env:
+          LLVM_SYS_181_PREFIX: /usr/lib/llvm-18
+        run: cargo build --release --features ebpf
+      - name: Stage artifacts
+        run: |
+          install -Dm755 target/release/mcpfz-probe mcpfz-probe-x86_64-linux-ebpf
+          sha256sum mcpfz-probe-x86_64-linux-ebpf > SHA256SUMS.txt
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            mcpfz-probe-x86_64-linux-ebpf
+            SHA256SUMS.txt
+          generate_release_notes: true

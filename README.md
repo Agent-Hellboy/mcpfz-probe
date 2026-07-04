@@ -3,10 +3,24 @@
 [![CI](https://github.com/Agent-Hellboy/mcpfz-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/Agent-Hellboy/mcpfz-probe/actions/workflows/ci.yml)
 
 Standalone runtime probe for MCP server fuzzing. It runs beside
-`mcp-server-fuzzer`: the fuzzer owns process launch and per-call timing; this
-repo owns runtime event collection, per-call attribution, and the sidecar
-protocol. The privileged sidecar is Rust (small, auditable, static Linux
-artifact); the integration layer is Python (a simple `RuntimeMonitor`).
+[**mcp-server-fuzzer**](https://github.com/Agent-Hellboy/mcp-server-fuzzer): the
+fuzzer owns process launch and per-call timing; this repo owns runtime event
+collection, per-call attribution, and the sidecar protocol. The privileged
+sidecar is Rust (small, auditable, static Linux artifact); the integration layer
+is Python (a simple `RuntimeMonitor`). See the fuzzer's
+[Runtime monitoring](https://github.com/Agent-Hellboy/mcp-server-fuzzer#runtime-monitoring-optional)
+section for how the two fit together.
+
+## Releases
+
+CI publishes a prebuilt, eBPF-enabled Linux binary on each `v*` tag. Fetch the
+latest and use it with the fuzzer:
+
+```sh
+curl -L -o mcpfz-probe \
+  https://github.com/Agent-Hellboy/mcpfz-probe/releases/latest/download/mcpfz-probe-x86_64-linux-ebpf
+chmod +x mcpfz-probe
+```
 
 ## Repo layout
 
