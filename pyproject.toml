@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcpfz-probe"
-version = "0.1.0"
+version = "0.1.2"
 description = "Runtime sidecar protocol and Python monitor for MCP server fuzzing"
 readme = "README.md"
 requires-python = ">=3.10"

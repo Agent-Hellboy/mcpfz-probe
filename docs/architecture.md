@@ -50,14 +50,26 @@ Events outside a call window are retained in an `ambient` bucket. Ambient events
 are not noise by default; delayed exfiltration and persistence attempts often
 appear there.
 
-## Linux eBPF MVP
+## Linux eBPF backend
 
-The first eBPF backend should implement:
+Implemented with `aya`. The BPF program (`crates/mcpfz-probe-ebpf`) attaches to
+`syscalls:sys_enter_*` tracepoints and pushes tagged events onto a ring buffer:
 
-- `sched_process_exec` plus fork tracking for exec events and descendants.
-- TCP connect state and UDP send hooks for network events.
-- `security_file_open` with path resolution for file events.
+- `execve` — process exec
+- `connect`, `sendto` — TCP/UDP destinations (read from the user `sockaddr`)
+- `openat` — file open (path + flags)
+- `unlink`, `unlinkat` — file delete
+- `chmod`, `fchmodat` — permission change
+- `ptrace` — process injection
 
-The kernel side should only capture and filter. It should not make policy
-decisions.
+Reading syscall arguments (and the user-supplied `sockaddr`) avoids kernel-struct
+CO-RE. The kernel side only captures; the userspace loader
+(`crates/mcpfz-probe/src/ebpf.rs`) does scope filtering, call attribution, and
+NDJSON emission. Policy stays in Python.
+
+Known limitation: the tracepoints are system-wide and scope filtering resolves a
+process's group via `/proc/<pid>/stat` in userspace, which races short-lived
+processes and adds per-event overhead. Moving the pgid filter into the kernel
+program (read `task->group_leader` via CO-RE) so the ring only carries in-scope
+events is the next step.
 

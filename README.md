@@ -1,6 +1,7 @@
 # mcpfz-probe
 
 [![CI](https://github.com/Agent-Hellboy/mcpfz-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/Agent-Hellboy/mcpfz-probe/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/mcpfz-probe.svg)](https://pypi.org/project/mcpfz-probe/)
 
 Standalone runtime probe for MCP server fuzzing. It runs beside
 [**mcp-server-fuzzer**](https://github.com/Agent-Hellboy/mcp-server-fuzzer): the
@@ -11,10 +12,16 @@ is Python (a simple `RuntimeMonitor`). See the fuzzer's
 [Runtime monitoring](https://github.com/Agent-Hellboy/mcp-server-fuzzer#runtime-monitoring-optional)
 section for how the two fit together.
 
-## Releases
+## Install
 
-CI publishes a prebuilt, eBPF-enabled Linux binary on each `v*` tag. Fetch the
-latest and use it with the fuzzer:
+The Python monitor + policy engine (used by the fuzzer):
+
+```sh
+pip install mcpfz-probe
+```
+
+CI also publishes a prebuilt, eBPF-enabled **Linux sidecar binary** on each `v*`
+tag. Fetch the latest and point the fuzzer at it via `MCPFZ_PROBE_BIN`:
 
 ```sh
 curl -L -o mcpfz-probe \
