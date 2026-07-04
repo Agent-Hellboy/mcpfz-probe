@@ -38,19 +38,25 @@ Sent from sidecar stdout to Python monitor.
 
 Common fields:
 
-- `type`: `exec`, `connect`, `file_open`, `drop`, or `status`.
+- `type`: `exec`, `connect`, `file_open`, `file_delete`, `chmod`, `ptrace`,
+  `drop`, or `status`.
 - `bucket`: `startup`, `call`, or `ambient`.
 - `call_id`: present for call-attributed events.
-- `pid`, `ppid`, `pgid`, `generation`: process metadata when available.
-- `ts_ns`: sidecar timestamp.
+- `pid`, `comm`, `ts_ns`: process id, command name, and sidecar timestamp.
+
+The eBPF backend captures these from `syscalls:sys_enter_*` tracepoints
+(`execve`, `connect`, `sendto`, `openat`, `unlink`/`unlinkat`,
+`chmod`/`fchmodat`, `ptrace`).
 
 ### Exec
 
 ```json
-{"type":"exec","bucket":"call","call_id":"uuid","pid":42,"argv":["/bin/sh","-c","curl example.com"]}
+{"type":"exec","bucket":"call","call_id":"uuid","pid":42,"comm":"sh","argv":["/usr/bin/curl"]}
 ```
 
 ### Connect
+
+`proto` is `tcp` for `connect` and `udp` for `sendto`.
 
 ```json
 {"type":"connect","bucket":"call","call_id":"uuid","pid":42,"proto":"tcp","dst":"203.0.113.7:443"}
@@ -60,6 +66,24 @@ Common fields:
 
 ```json
 {"type":"file_open","bucket":"call","call_id":"uuid","pid":42,"path":"/home/me/.ssh/id_ed25519","flags":"O_RDONLY"}
+```
+
+### File delete
+
+```json
+{"type":"file_delete","bucket":"call","call_id":"uuid","pid":42,"path":"/etc/cron.d/x"}
+```
+
+### Chmod
+
+```json
+{"type":"chmod","bucket":"call","call_id":"uuid","pid":42,"path":"/root/hook.sh","mode":"755"}
+```
+
+### Ptrace
+
+```json
+{"type":"ptrace","bucket":"call","call_id":"uuid","pid":42,"request":0,"target_pid":0}
 ```
 
 ### Drop
