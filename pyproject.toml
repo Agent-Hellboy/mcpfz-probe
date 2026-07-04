@@ -11,6 +11,10 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "Prince Roshan"}]
 
+[project.urls]
+Homepage = "https://github.com/Agent-Hellboy/mcpfz-probe"
+Repository = "https://github.com/Agent-Hellboy/mcpfz-probe"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
