@@ -1,5 +1,7 @@
 # mcpfz-probe
 
+[![CI](https://github.com/Agent-Hellboy/mcpfz-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/Agent-Hellboy/mcpfz-probe/actions/workflows/ci.yml)
+
 Standalone runtime probe for MCP server fuzzing. It runs beside
 `mcp-server-fuzzer`: the fuzzer owns process launch and per-call timing; this
 repo owns runtime event collection, per-call attribution, and the sidecar
@@ -24,11 +26,14 @@ docs/                          Architecture and protocol notes
 - **`fake` backend**: complete. A deterministic test double that replays scripted
   events into the correct bucket (`startup`/`call`/`ambient`) attributed to the
   active `call_id` — the whole pipeline runs on any OS without root.
-- **`ebpf` backend**: real exec-events MVP. Loads a CO-RE BPF program on
-  `sys_enter_execve`, attributes captured execs to the active call window, and
-  emits the same NDJSON as the fake backend. Verified on Ubuntu 24.04 / kernel 6.8
-  capturing a real `curl` exec that the policy engine flagged. Connect and
-  `file_open` probes are next.
+- **`ebpf` backend**: real, multi-probe. Loads a CO-RE BPF program on
+  `syscalls:sys_enter_*` tracepoints — exec (`execve`), network (`connect`,
+  `sendto`), file open (`openat`), delete (`unlink`/`unlinkat`), chmod
+  (`chmod`/`fchmodat`), and `ptrace` — attributes captured events to the active
+  call window, and emits the same NDJSON as the fake backend. Verified on Ubuntu
+  24.04 / kernel 6.8 driven by `mcp-server-fuzzer`: a vulnerable server produced
+  exec, TCP+UDP connect, sensitive read, out-of-workspace write, chmod, delete,
+  and ptrace findings, each attributed to the exact tool call.
 
 ## Sidecar protocol (NDJSON)
 
@@ -91,10 +96,13 @@ sudo -E mcp-fuzzer --mode tools --protocol stdio \
   --runs 3 --max-concurrency 1
 ```
 
-Kernel-observed execs become `high`-severity `runtime.exec` findings attributed
-to the exact tool + run. Verified on Linux against `examples/vulnerable_server.py`
-(a tool that shells out): every fuzzed `fetch_url` call's `/bin/sh` and `curl`
-execs were captured and flagged, and merged into the fuzzer's report.
+Kernel-observed syscalls become findings attributed to the exact tool + run:
+`runtime.exec`, `runtime.net_connect`, `runtime.sensitive_read`,
+`runtime.fs_write`, `runtime.fs_delete`, `runtime.fs_chmod`, and
+`runtime.ptrace`. Verified on Linux against `examples/vulnerable_server.py`
+(tools that shell out, read `~/.ssh`, beacon over TCP/UDP, drop+chmod+delete a
+file, and call ptrace): all seven categories were captured and merged into the
+fuzzer's report, each attributed to the call that caused it.
 
 Per-call attribution assumes stdio calls run serialized (`--max-concurrency 1`),
 matching the design in `docs/architecture.md`; execs from overlapping calls still

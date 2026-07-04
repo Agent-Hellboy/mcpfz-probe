@@ -28,6 +28,24 @@ class RuntimePolicyTests(unittest.TestCase):
             ],
         )
 
+    def test_flags_delete_chmod_and_ptrace(self) -> None:
+        with tempfile.TemporaryDirectory() as workspace, tempfile.TemporaryDirectory() as tmpdir:
+            policy = RuntimePolicy(workspace=Path(workspace), tmpdir=Path(tmpdir))
+            events = [
+                RuntimeEvent(type="file_delete", call_id="c1", data={"path": "/etc/passwd"}),
+                RuntimeEvent(type="chmod", call_id="c1", data={"path": "/root/x.sh", "mode": "755"}),
+                RuntimeEvent(type="ptrace", call_id="c1", data={"request": 0, "target_pid": 0}),
+                # Deletion inside the workspace is allowed -> no finding.
+                RuntimeEvent(type="file_delete", call_id="c1", data={"path": f"{workspace}/tmp.txt"}),
+            ]
+
+            categories = [finding.category for finding in evaluate_events(events, policy)]
+
+        self.assertEqual(
+            categories,
+            ["runtime.fs_delete", "runtime.fs_chmod", "runtime.ptrace"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

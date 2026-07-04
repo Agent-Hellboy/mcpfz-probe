@@ -184,7 +184,14 @@ mod tests {
 
     #[test]
     fn parses_fake_backend_options() {
-        match parse(&["--backend", "fake", "--events-file", "e.json", "--grace-ms", "250"]) {
+        match parse(&[
+            "--backend",
+            "fake",
+            "--events-file",
+            "e.json",
+            "--grace-ms",
+            "250",
+        ]) {
             Parsed::Run(args) => {
                 assert_eq!(args.backend, Backend::Fake);
                 assert_eq!(args.events_file.as_deref(), Some("e.json"));
